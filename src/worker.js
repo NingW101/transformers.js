@@ -129,14 +129,15 @@ async function generate(messages) {
   });
 }
 
-async function load(baseURI) {
+async function load() {
   self.postMessage({
     status: "loading",
     data: `Loading model`,
   });
 
-  env.backends.onnx.wasm.wasmPaths = "/models/wasm/";
+  env.backends.onnx.wasm.wasmPaths = "/models/wasm/ort-web@1_19_0_dev/";
   env.localModelPath = "/models/";
+  // temporally hardcode to use local model only
   env.allowLocalModels = true;
   env.allowRemoteModels = false;
 
@@ -159,11 +160,11 @@ async function load(baseURI) {
 }
 // Listen for messages from the main thread
 self.addEventListener("message", async (e) => {
-  const { type, data, baseURI } = e.data;
+  const { type, data } = e.data;
 
   switch (type) {
     case "load":
-      load(baseURI);
+      load();
       break;
 
     case "generate":
