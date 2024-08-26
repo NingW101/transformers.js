@@ -73,6 +73,8 @@ import {
 } from './utils/tensor.js';
 import { RawImage } from './utils/image.js';
 
+import {TextStreamer} from "./generation/streamers.js"
+
 
 /**
  * @typedef {string | RawImage | URL} ImageInput
@@ -1926,17 +1928,31 @@ export class ImageToTextPipeline extends (/** @type {new (options: TextImagePipe
     }
 
     /** @type {ImageToTextPipelineCallback} */
-    async _call(images, generate_kwargs = {}) {
+    async _call(images, generate_kwargs = {}, {
+        skip_prompt = false,
+        callback_function = null,
+        token_callback_function = null,
+        decode_kwargs = {},
+        ...kwargs
+     }) {
 
         const isBatched = Array.isArray(images);
         const preparedImages = await prepareImages(images);
 
         const { pixel_values } = await this.processor(preparedImages);
 
+        const streamer = new TextStreamer(this.tokenizer, {
+            skip_prompt:skip_prompt,
+            callback_function:callback_function,
+            token_callback_function:token_callback_function,
+            decode_kwargs : decode_kwargs,
+            ...kwargs
+        });
+
         const toReturn = [];
         for (const batch of pixel_values) {
             batch.dims = [1, ...batch.dims]
-            const output = await this.model.generate({ inputs: batch, ...generate_kwargs });
+            const output = await this.model.generate({ inputs: batch, streamer: streamer, ...generate_kwargs });
             const decoded = this.tokenizer.batch_decode(/** @type {Tensor} */(output), {
                 skip_special_tokens: true,
             }).map(x => ({ generated_text: x.trim() }))
