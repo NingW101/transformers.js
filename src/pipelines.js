@@ -737,7 +737,13 @@ export class Text2TextGenerationPipeline extends (/** @type {new (options: TextP
     }
 
     /** @type {Text2TextGenerationPipelineCallback} */
-    async _call(texts, generate_kwargs = {}) {
+    async _call(texts, generate_kwargs = {}, {
+        skip_prompt = false,
+        callback_function = null,
+        token_callback_function = null,
+        decode_kwargs = {},
+        ...kwargs
+    }) {
         if (!Array.isArray(texts)) {
             texts = [texts];
         }
@@ -775,7 +781,15 @@ export class Text2TextGenerationPipeline extends (/** @type {new (options: TextP
             inputs = tokenizer(texts, tokenizer_options);
         }
 
-        const outputTokenIds = await this.model.generate({ ...inputs, ...generate_kwargs });
+        const streamer = new TextStreamer(tokenizer, {
+            skip_prompt:skip_prompt,
+            callback_function:callback_function,
+            token_callback_function:token_callback_function,
+            decode_kwargs : decode_kwargs,
+            ...kwargs
+        });
+
+        const outputTokenIds = await this.model.generate({ ...inputs, streamer:streamer, ...generate_kwargs });
         return tokenizer.batch_decode(/** @type {Tensor} */(outputTokenIds), {
             skip_special_tokens: true,
         }).map(text => ({ [this._key]: text }));
